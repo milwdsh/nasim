@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>افزودن محصول | نسیم علیپناه</title>
+
+    <link rel="stylesheet" href="../css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+</head>
+
+<body>
+
+<div class="page-bg"></div>
+
+<main class="admin-body">
+
+    <div class="admin-top">
+        <div>
+            <span class="eyebrow">PRODUCT</span>
+            <h1 id="heading">افزودن محصول</h1>
+        </div>
+
+        <a href="products.html" class="mini-btn">
+            بازگشت
+        </a>
+    </div>
+
+
+    <form id="form" class="form-card glass">
+
+        <div class="form-grid">
+
+            <!-- نام -->
+            <div class="field">
+                <label for="name">نام محصول</label>
+
+                <input
+                    id="name"
+                    type="text"
+                    placeholder="مثلاً تابلو فرش بهارستان"
+                    required
+                >
+            </div>
+
+
+            <!-- دسته بندی -->
+            <div class="field">
+
+                <label for="category">
+                    دسته‌بندی
+                </label>
+
+                <select id="category">
+
+                    <option value="تابلو فرش">
+                        تابلو فرش
+                    </option>
+
+                    <option value="تابلو مدرن">
+                        تابلو مدرن
+                    </option>
+
+                    <option value="کالیگرافی">
+                        کالیگرافی
+                    </option>
+
+                    <option value="تابلو مخمل">
+                        تابلو مخمل
+                    </option>
+
+                    <option value="سایر آثار">
+                        سایر آثار
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- قیمت -->
+            <div class="field">
+
+                <label for="price">
+                    قیمت (تومان)
+                </label>
+
+                <input
+                    id="price"
+                    type="number"
+                    min="0"
+                    placeholder="25000000"
+                    required
+                >
+
+            </div>
+
+
+            <!-- موجودی -->
+            <div class="field">
+
+                <label for="stock">
+                    موجودی
+                </label>
+
+                <input
+                    id="stock"
+                    type="number"
+                    min="0"
+                    value="1"
+                    required
+                >
+
+            </div>
+
+
+            <!-- ابعاد -->
+            <div class="field">
+
+                <label for="dimensions">
+                    ابعاد
+                </label>
+
+                <input
+                    id="dimensions"
+                    type="text"
+                    placeholder="مثلاً 80 × 120 سانتی‌متر"
+                >
+
+            </div>
+
+
+            <!-- متریال -->
+            <div class="field">
+
+                <label for="material">
+                    متریال
+                </label>
+
+                <input
+                    id="material"
+                    type="text"
+                    placeholder="مثلاً مخمل، چوب و..."
+                >
+
+            </div>
+
+
+            <!-- توضیحات -->
+            <div class="field">
+
+                <label for="description">
+                    توضیحات
+                </label>
+
+                <textarea
+                    id="description"
+                    placeholder="توضیحات محصول..."
+                ></textarea>
+
+            </div>
+
+
+            <!-- عکس اصلی -->
+            <div class="field">
+
+                <label for="cover">
+                    عکس اصلی محصول
+                </label>
+
+                <input
+                    id="cover"
+                    type="file"
+                    accept="image/*"
+                >
+
+            </div>
+
+
+            <!-- عکس های بیشتر -->
+            <div class="field">
+
+                <label for="gallery">
+                    عکس‌های بیشتر
+                </label>
+
+                <input
+                    id="gallery"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                >
+
+            </div>
+
+
+            <!-- نمایش -->
+            <div class="field">
+
+                <label>
+
+                    <input
+                        id="active"
+                        type="checkbox"
+                        checked
+                    >
+
+                    نمایش محصول در فروشگاه
+
+                </label>
+
+            </div>
+
+
+            <!-- دکمه -->
+            <button
+                id="submitButton"
+                class="primary-btn"
+                type="submit"
+            >
+                ذخیره محصول
+            </button>
+
+        </div>
+
+    </form>
+
+</main>
+
+
+<div class="toast"></div>
+
+
+<script>
+
+const sb = supabase.createClient(
+    window.SUPABASE_URL,
+    window.SUPABASE_ANON_KEY
+);
+
+
+const form = document.getElementById("form");
+
+const nameInput = document.getElementById("name");
+const categoryInput = document.getElementById("category");
+const priceInput = document.getElementById("price");
+const stockInput = document.getElementById("stock");
+const dimensionsInput = document.getElementById("dimensions");
+const materialInput = document.getElementById("material");
+const descriptionInput = document.getElementById("description");
+const coverInput = document.getElementById("cover");
+const galleryInput = document.getElementById("gallery");
+const activeInput = document.getElementById("active");
+const submitButton = document.getElementById("submitButton");
+
+const heading = document.getElementById("heading");
+
+const id =
+    new URLSearchParams(location.search).get("id");
+
+let existing = null;
+
+
+/* -----------------------------
+   Toast
+----------------------------- */
+
+function toast(message) {
+
+    const t = document.querySelector(".toast");
+
+    t.textContent = message;
+
+    t.classList.add("show");
+
+    setTimeout(() => {
+        t.classList.remove("show");
+    }, 3000);
+
+}
+
+
+/* -----------------------------
+   Upload Image
+----------------------------- */
+
+async function uploadImage(file) {
+
+    if (!file) {
+        return null;
+    }
+
+    const extension =
+        file.name.split(".").pop().toLowerCase();
+
+    const fileName =
+        `${crypto.randomUUID()}.${extension}`;
+
+    const { error } =
+        await sb.storage
+            .from("product-images")
+            .upload(fileName, file);
+
+    if (error) {
+        throw error;
+    }
+
+    const { data } =
+        sb.storage
+            .from("product-images")
+            .getPublicUrl(fileName);
+
+    return data.publicUrl;
+
+}
+
+
+/* -----------------------------
+   Load Existing Product
+----------------------------- */
+
+async function init() {
+
+    const {
+        data: {
+            user
+        }
+    } = await sb.auth.getUser();
+
+
+    if (!user) {
+
+        location.href = "login.html";
+
+        return;
+
+    }
+
+
+    /* ویرایش */
+
+    if (id) {
+
+        const {
+            data,
+            error
+        } = await sb
+            .from("products")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+
+        if (error) {
+
+            toast(
+                "خطا در دریافت محصول: " +
+                error.message
+            );
+
+            return;
+
+        }
+
+
+        existing = data;
+
+
+        if (data) {
+
+            heading.textContent =
+                "ویرایش محصول";
+
+
+            nameInput.value =
+                data.name || "";
+
+
+            categoryInput.value =
+                data.category || "سایر آثار";
+
+
+            priceInput.value =
+                data.price ?? 0;
+
+
+            stockInput.value =
+                data.stock ?? 0;
+
+
+            dimensionsInput.value =
+                data.dimensions || "";
+
+
+            materialInput.value =
+                data.material || "";
+
+
+            descriptionInput.value =
+                data.description || "";
+
+
+            activeInput.checked =
+                data.is_active !== false;
+
+        }
+
+    }
+
+}
+
+
+/* -----------------------------
+   Save Product
+----------------------------- */
+
+form.addEventListener(
+    "submit",
+    async function(e) {
+
+        e.preventDefault();
+
+
+        try {
+
+            /* -------------------------
+               گرفتن مقادیر فرم
+            ------------------------- */
+
+            const productName =
+                nameInput.value.trim();
+
+
+            const productCategory =
+                categoryInput.value;
+
+
+            const productPrice =
+                Number(priceInput.value);
+
+
+            const productStock =
+                Number(stockInput.value);
+
+
+            const productDimensions =
+                dimensionsInput.value.trim();
+
+
+            const productMaterial =
+                materialInput.value.trim();
+
+
+            const productDescription =
+                descriptionInput.value.trim();
+
+
+            const productActive =
+                activeInput.checked;
+
+
+            /* -------------------------
+               اعتبارسنجی
+            ------------------------- */
+
+            if (!productName) {
+
+                toast(
+                    "نام محصول را وارد کنید."
+                );
+
+                nameInput.focus();
+
+                return;
+
+            }
+
+
+            if (
+                Number.isNaN(productPrice) ||
+                productPrice < 0
+            ) {
+
+                toast(
+                    "قیمت محصول صحیح نیست."
+                );
+
+                priceInput.focus();
+
+                return;
+
+            }
+
+
+            if (
+                Number.isNaN(productStock) ||
+                productStock < 0
+            ) {
+
+                toast(
+                    "موجودی محصول صحیح نیست."
+                );
+
+                stockInput.focus();
+
+                return;
+
+            }
+
+
+            /* -------------------------
+               Loading
+            ------------------------- */
+
+            submitButton.disabled = true;
+
+            submitButton.textContent =
+                "در حال ذخیره...";
+
+
+            /* -------------------------
+               عکس اصلی
+            ------------------------- */
+
+            let coverUrl =
+                existing?.cover_url || null;
+
+
+            if (coverInput.files.length > 0) {
+
+                coverUrl =
+                    await uploadImage(
+                        coverInput.files[0]
+                    );
+
+            }
+
+
+            /* -------------------------
+               گالری
+            ------------------------- */
+
+            let galleryUrls =
+                Array.isArray(
+                    existing?.gallery_urls
+                )
+                    ? [...existing.gallery_urls]
+                    : [];
+
+
+            if (galleryInput.files.length > 0) {
+
+                for (
+                    const file
+                    of galleryInput.files
+                ) {
+
+                    const url =
+                        await uploadImage(file);
+
+                    if (url) {
+
+                        galleryUrls.push(url);
+
+                    }
+
+                }
+
+            }
+
+
+            /* -------------------------
+               Payload
+            ------------------------- */
+
+            const payload = {
+
+                name:
+                    productName,
+
+                category:
+                    productCategory,
+
+                price:
+                    productPrice,
+
+                stock:
+                    productStock,
+
+                dimensions:
+                    productDimensions || null,
+
+                material:
+                    productMaterial || null,
+
+                description:
+                    productDescription || null,
+
+                cover_url:
+                    coverUrl,
+
+                gallery_urls:
+                    galleryUrls,
+
+                is_active:
+                    productActive
+
+            };
+
+
+            console.log(
+                "Sending product:",
+                payload
+            );
+
+
+            /* -------------------------
+               INSERT / UPDATE
+            ------------------------- */
+
+            let result;
+
+
+            if (id) {
+
+                result =
+                    await sb
+                        .from("products")
+                        .update(payload)
+                        .eq("id", id);
+
+            } else {
+
+                result =
+                    await sb
+                        .from("products")
+                        .insert(payload);
+
+            }
+
+
+            /* -------------------------
+               Supabase Error
+            ------------------------- */
+
+            if (result.error) {
+
+                throw result.error;
+
+            }
+
+
+            /* -------------------------
+               Success
+            ------------------------- */
+
+            toast(
+                id
+                    ? "محصول با موفقیت ویرایش شد."
+                    : "محصول با موفقیت اضافه شد."
+            );
+
+
+            setTimeout(
+                () => {
+
+                    location.href =
+                        "products.html";
+
+                },
+                900
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "PRODUCT ERROR:",
+                error
+            );
+
+
+            toast(
+                "خطا: " +
+                (error.message || error)
+            );
+
+
+            submitButton.disabled =
+                false;
+
+
+            submitButton.textContent =
+                "ذخیره محصول";
+
+        }
+
+    }
+);
+
+
+/* شروع */
+
+init();
+
+</script>
+
+</body>
+</html>
