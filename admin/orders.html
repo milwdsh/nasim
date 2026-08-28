@@ -1,1 +1,737 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>سفارشات</title><link rel="stylesheet" href="../css/style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="../js/config.js"></script></head><body><div class="page-bg"></div><main class="admin-body"><div class="admin-top"><h1>سفارشات</h1></div><nav class="admin-nav"><a href="index.html">داشبورد</a><a href="products.html">محصولات</a><a class="active" href="orders.html">سفارشات</a><a href="shipping.html">هزینه ارسال</a></nav><div id="orders" class="admin-list">در حال دریافت...</div></main><div class="toast"></div><script>const sb=supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY);const labels={pending_payment:"در انتظار پرداخت",paid:"پرداخت شده",preparing:"در حال آماده‌سازی",shipped:"ارسال شده",delivered:"تحویل شده",cancelled:"لغو شده"};async function load(){const {data}=await sb.from("orders").select("*,order_items(*)").order("created_at",{ascending:false});orders.innerHTML=(data||[]).map(o=>`<article class="admin-card glass"><div class="admin-row"><div><h3>سفارش #${o.order_number}</h3><small>${o.customer_name} · ${o.phone} · ${o.city}</small></div><span class="status">${labels[o.order_status]||o.order_status}</span></div><div style="padding-top:12px;font-size:9px;color:#aaa">${o.order_items.map(i=>`${i.product_name} × ${i.quantity}`).join(" ، ")}<br>مبلغ: ${new Intl.NumberFormat("fa-IR").format(o.total)} تومان<br>ارسال: ${o.shipping_method}</div><div style="display:flex;gap:8px;margin-top:12px"><select data-status="${o.id}" style="flex:1"><option value="pending_payment">در انتظار پرداخت</option><option value="paid">پرداخت شده</option><option value="preparing">در حال آماده‌سازی</option><option value="shipped">ارسال شده</option><option value="delivered">تحویل شده</option><option value="cancelled">لغو شده</option></select><button class="mini-btn" data-save="${o.id}">ذخیره</button></div></article>`).join("")||'<div class="empty">سفارشی ثبت نشده است.</div>';data?.forEach(o=>{const s=document.querySelector(`[data-status="${o.id}"]`);s.value=o.order_status});document.querySelectorAll("[data-save]").forEach(b=>b.onclick=async()=>{const s=document.querySelector(`[data-status="${b.dataset.save}"]`);await sb.from("orders").update({order_status:s.value,payment_status:s.value==="paid"?"paid":s.value==="pending_payment"?"pending":undefined}).eq("id",b.dataset.save);load()})}sb.auth.getUser().then(x=>x.data.user?load():location.href="login.html")</script></body></html>
+<!doctype html>
+<html lang="fa" dir="rtl">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <title>سفارشات</title>
+
+  <link rel="stylesheet" href="../css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/config.js"></script>
+</head>
+
+<body>
+
+<div class="page-bg"></div>
+
+<main class="admin-body">
+
+  <div class="admin-top">
+    <h1>سفارشات</h1>
+  </div>
+
+
+  <nav class="admin-nav">
+    <a href="index.html">داشبورد</a>
+    <a href="products.html">محصولات</a>
+    <a class="active" href="orders.html">سفارشات</a>
+    <a href="shipping.html">هزینه ارسال</a>
+  </nav>
+
+
+  <div id="orders" class="admin-list">
+    در حال دریافت...
+  </div>
+
+</main>
+
+
+<div class="toast"></div>
+
+
+<style>
+
+/* =========================
+   ORDER ADMIN
+========================= */
+
+.order-card {
+  margin-bottom: 16px;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.order-title h3 {
+  margin-bottom: 7px;
+}
+
+.order-title small {
+  color: var(--muted);
+  line-height: 2;
+}
+
+.status {
+  white-space: nowrap;
+}
+
+.order-info {
+  margin-top: 15px;
+  padding: 15px;
+
+  border-radius: 14px;
+
+  background: rgba(255,255,255,.035);
+
+  font-size: 13px;
+  line-height: 2.2;
+}
+
+.order-info strong {
+  color: var(--gold2);
+}
+
+.order-items {
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.order-item {
+  padding: 4px 0;
+}
+
+.order-total {
+  margin-top: 8px;
+  padding-top: 8px;
+
+  border-top: 1px solid var(--border);
+
+  color: var(--gold2);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+
+/* پرداخت */
+
+.payment-box {
+  margin-top: 15px;
+  padding: 14px;
+
+  border-radius: 14px;
+
+  border: 1px solid rgba(215,183,122,.2);
+
+  background: rgba(215,183,122,.045);
+}
+
+.payment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 10px;
+
+  margin-bottom: 10px;
+}
+
+.payment-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.payment-status {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.payment-pending {
+  color: #e6c77a;
+}
+
+.payment-paid {
+  color: #8ed49b;
+}
+
+.payment-rejected {
+  color: #e88989;
+}
+
+
+/* رسید */
+
+.receipt-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 8px;
+  padding: 9px 14px;
+
+  border-radius: 10px;
+
+  border: 1px solid var(--border);
+
+  background: rgba(255,255,255,.06);
+
+  color: var(--text);
+
+  text-decoration: none;
+
+  font-size: 12px;
+
+  cursor: pointer;
+}
+
+.receipt-button:hover {
+  border-color: var(--gold);
+  color: var(--gold2);
+}
+
+
+/* کنترل ها */
+
+.order-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.order-controls select {
+  flex: 1;
+  min-width: 0;
+}
+
+
+/* موبایل */
+
+@media (max-width: 600px) {
+
+  .order-header {
+    flex-direction: column;
+  }
+
+  .order-controls {
+    flex-direction: column;
+  }
+
+  .order-controls select,
+  .order-controls button {
+    width: 100%;
+  }
+
+}
+
+</style>
+
+
+<script>
+
+const sb = supabase.createClient(
+  window.SUPABASE_URL,
+  window.SUPABASE_ANON_KEY
+);
+
+
+/* =========================
+   وضعیت سفارش
+========================= */
+
+const orderLabels = {
+
+  pending: "در انتظار بررسی",
+
+  pending_payment: "در انتظار پرداخت",
+
+  confirmed: "تأیید شده",
+
+  processing: "در حال آماده‌سازی",
+
+  shipped: "ارسال شده",
+
+  delivered: "تحویل شده",
+
+  cancelled: "لغو شده"
+
+};
+
+
+/* =========================
+   وضعیت پرداخت
+========================= */
+
+const paymentLabels = {
+
+  pending: "در انتظار تأیید",
+
+  paid: "پرداخت تأیید شد",
+
+  rejected: "پرداخت رد شد"
+
+};
+const shippingLabels = {
+  post: "پست",
+  tipax: "تیپاکس",
+  courier: "پیک"
+};
+
+/* =========================
+   فرمت پول
+========================= */
+
+function money(value) {
+
+  return new Intl.NumberFormat(
+    "fa-IR"
+  ).format(Number(value || 0)) + " تومان";
+
+}
+
+
+/* =========================
+   نمایش سفارشات
+========================= */
+
+async function loadOrders() {
+
+  const container =
+    document.getElementById("orders");
+
+  container.innerHTML =
+    "در حال دریافت سفارشات...";
+
+
+  const {
+    data,
+    error
+  } = await sb
+    .from("orders")
+    .select("*,order_items(*)")
+    .order("created_at", {
+      ascending: false
+    });
+
+
+  if (error) {
+
+    console.error(error);
+
+    container.innerHTML =
+      `<div class="empty">
+        خطا در دریافت سفارشات
+      </div>`;
+
+    return;
+  }
+
+
+  if (!data || !data.length) {
+
+    container.innerHTML =
+      `<div class="empty">
+        سفارشی ثبت نشده است.
+      </div>`;
+
+    return;
+  }
+
+
+  container.innerHTML = data.map(order => {
+
+    const items =
+      order.order_items || [];
+
+
+    const itemsHtml =
+      items.map(item => `
+        <div class="order-item">
+          ${escapeHtml(item.product_name)}
+          ×
+          ${item.quantity}
+          <span>
+            (${money(item.unit_price)})
+          </span>
+        </div>
+      `).join("");
+
+
+    let paymentClass =
+      "payment-pending";
+
+    if (order.payment_status === "paid") {
+      paymentClass = "payment-paid";
+    }
+
+    if (order.payment_status === "rejected") {
+      paymentClass = "payment-rejected";
+    }
+
+
+    return `
+
+      <article class="admin-card glass order-card">
+
+        <!-- Header -->
+
+        <div class="order-header">
+
+          <div class="order-title">
+
+            <h3>
+              سفارش #${order.order_number}
+            </h3>
+
+            <small>
+              ${escapeHtml(order.customer_name)}
+              ·
+              ${escapeHtml(order.phone)}
+              ·
+              ${escapeHtml(order.city)}
+            </small>
+
+          </div>
+
+
+          <span class="status">
+            ${orderLabels[order.order_status] || order.order_status}
+          </span>
+
+        </div>
+
+
+        <!-- اطلاعات سفارش -->
+
+        <div class="order-info">
+
+          <div>
+            <strong>آدرس:</strong>
+            ${escapeHtml(order.address || "-")}
+          </div>
+
+          <div>
+            <strong>کد پستی:</strong>
+            ${escapeHtml(order.postal_code || "-")}
+          </div>
+
+          <div>
+            <strong>روش ارسال:</strong>
+            $${shippingLabels[order.shipping_method] || order.shipping_method || "-"}
+          </div>
+
+
+          <div class="order-items">
+
+            <strong>محصولات:</strong>
+
+            ${itemsHtml || "بدون محصول"}
+
+          </div>
+
+
+          <div>
+            هزینه ارسال:
+            ${money(order.shipping_cost)}
+          </div>
+
+
+          <div class="order-total">
+            مبلغ نهایی:
+            ${money(order.total)}
+          </div>
+
+        </div>
+
+
+        <!-- پرداخت -->
+
+        <div class="payment-box">
+
+          <div class="payment-row">
+
+            <span class="payment-label">
+              وضعیت پرداخت
+            </span>
+
+            <span class="payment-status ${paymentClass}">
+              ${paymentLabels[order.payment_status] || order.payment_status}
+            </span>
+
+          </div>
+
+
+          ${
+            order.payment_ref
+            ?
+            `
+            <div style="font-size:12px;color:var(--muted)">
+              شماره پیگیری:
+              ${escapeHtml(order.payment_ref)}
+            </div>
+            `
+            :
+            ""
+          }
+
+
+          ${
+            order.receipt_url
+            ?
+            `
+            <a
+              class="receipt-button"
+              href="${order.receipt_url}"
+              target="_blank"
+              rel="noopener"
+            >
+              👁 مشاهده رسید پرداخت
+            </a>
+            `
+            :
+            `
+            <div style="font-size:12px;color:var(--muted)">
+              رسیدی ارسال نشده است.
+            </div>
+            `
+          }
+
+        </div>
+
+
+        <!-- کنترل وضعیت -->
+
+        <div class="order-controls">
+
+          <select
+            data-status="${order.id}"
+          >
+
+            <option value="pending"
+              ${order.order_status === "pending" ? "selected" : ""}>
+              در انتظار بررسی
+            </option>
+
+            <option value="pending_payment"
+              ${order.order_status === "pending_payment" ? "selected" : ""}>
+              در انتظار پرداخت
+            </option>
+
+            <option value="confirmed"
+              ${order.order_status === "confirmed" ? "selected" : ""}>
+              تأیید شده
+            </option>
+
+            <option value="processing"
+              ${order.order_status === "processing" ? "selected" : ""}>
+              در حال آماده‌سازی
+            </option>
+
+            <option value="shipped"
+              ${order.order_status === "shipped" ? "selected" : ""}>
+              ارسال شده
+            </option>
+
+            <option value="delivered"
+              ${order.order_status === "delivered" ? "selected" : ""}>
+              تحویل شده
+            </option>
+
+            <option value="cancelled"
+              ${order.order_status === "cancelled" ? "selected" : ""}>
+              لغو شده
+            </option>
+
+          </select>
+
+
+          <button
+            class="mini-btn"
+            data-save="${order.id}"
+          >
+            ذخیره
+          </button>
+
+        </div>
+
+      </article>
+
+    `;
+
+  }).join("");
+
+
+  /* =========================
+     دکمه ذخیره
+  ========================= */
+
+  document
+    .querySelectorAll("[data-save]")
+    .forEach(button => {
+
+      button.onclick = async () => {
+
+        const id =
+          button.dataset.save;
+
+        const select =
+          document.querySelector(
+            `[data-status="${id}"]`
+          );
+
+        const newStatus =
+          select.value;
+
+
+        button.disabled = true;
+
+        button.textContent =
+          "در حال ذخیره...";
+
+
+        const updateData = {
+
+          order_status:
+            newStatus,
+
+          updated_at:
+            new Date().toISOString()
+
+        };
+
+
+        /*
+         * اگر سفارش به confirmed یا بعد از آن
+         * رفت، پرداخت را تأییدشده در نظر نمی‌گیریم
+         * مگر اینکه قبلاً paid شده باشد.
+         */
+
+        if (
+          newStatus === "confirmed" ||
+          newStatus === "processing" ||
+          newStatus === "shipped" ||
+          newStatus === "delivered"
+        ) {
+
+          updateData.payment_status =
+            "paid";
+
+        }
+
+
+        if (newStatus === "pending_payment") {
+
+          updateData.payment_status =
+            "pending";
+
+        }
+
+
+        if (newStatus === "cancelled") {
+
+          updateData.payment_status =
+            "rejected";
+
+        }
+
+
+        const {
+          error
+        } = await sb
+          .from("orders")
+          .update(updateData)
+          .eq("id", id);
+
+
+        if (error) {
+
+          console.error(error);
+
+          button.disabled = false;
+
+          button.textContent =
+            "ذخیره";
+
+          return showToast(
+            error.message
+          );
+
+        }
+
+
+        await loadOrders();
+
+      };
+
+    });
+
+}
+
+
+/* =========================
+   امنیت نمایش متن
+========================= */
+
+function escapeHtml(value) {
+
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+}
+
+
+/* =========================
+   Toast
+========================= */
+
+function showToast(message) {
+
+  const toast =
+    document.querySelector(".toast");
+
+  if (!toast) {
+    alert(message);
+    return;
+  }
+
+  toast.textContent = message;
+
+  toast.classList.add("show");
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+  }, 3000);
+
+}
+
+
+/* =========================
+   ورود ادمین
+========================= */
+
+sb.auth
+  .getUser()
+  .then(result => {
+
+    const user =
+      result.data.user;
+
+    if (!user) {
+
+      location.href =
+        "login.html";
+
+      return;
+    }
+
+    loadOrders();
+
+  });
+
+</script>
+
+</body>
+</html>
